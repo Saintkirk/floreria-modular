@@ -128,7 +128,7 @@ def vista_crear_cliente(coleccion: Collection) -> None:
         if cat_op in ["1", "2", "3"]:
             categoria = CATEGORIAS[int(cat_op) - 1]
             break
-        print(f"{Colors.RED} Opción inválida{Colors.END}")
+        print(f"{Colors.RED}✗ Opción inválida{Colors.END}")
 
     notas = input("Notas (Enter para omitir): ").strip()
     if len(notas) > MAX_NOTAS:
@@ -193,7 +193,7 @@ def vista_crear_cliente(coleccion: Collection) -> None:
 
 # ═══════════════════════════════════════════════════════════════
 # 2. READ BÁSICO
-# ═══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
 def vista_listar_clientes(coleccion: Collection) -> None:
     """Vista para listar todos los clientes con resumen de pedidos."""
     print(f"\n{Colors.BOLD}--- TODOS LOS CLIENTES ---{Colors.END}")
@@ -294,7 +294,7 @@ def vista_buscar_fechas(coleccion: Collection) -> None:
                 if fecha_inicio <= p.get('fecha_pedido', datetime.min) <= fecha_fin.replace(hour=23, minute=59, second=59):
                     print(f"  • {c['nombre']} - {p['numero_pedido']} - {formatear_precio(p['total'])}")
     except ValueError:
-        print(f"{Colors.RED} Formato inválido{Colors.END}")
+        print(f"{Colors.RED}✗ Formato inválido{Colors.END}")
 
 
 def vista_buscar_subdocumento(coleccion: Collection) -> None:
@@ -327,7 +327,7 @@ def vista_buscar_subdocumento(coleccion: Collection) -> None:
             pmax = float(input("Máx: "))
             resultados = buscar_elemmatch(coleccion, pmin, pmax)
         except ValueError:
-            print(f"{Colors.RED}✗ Valor inválido{Colors.END}")
+            print(f"{Colors.RED} Valor inválido{Colors.END}")
             return
     else:
         return

@@ -7,13 +7,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ─── Base de datos ───────────────────────────────────────────
+# Base de datos
 MONGO_URI: str = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 DB_NAME: str = os.getenv("DB_NAME", "floreria_db")
 COLLECTION_CLIENTS: str = "clientes"
 COLLECTION_CATALOG: str = "productos_catalogo"
 
-# ─── Constantes del dominio ──────────────────────────────────
+# Constantes del dominio
 CATEGORIAS: list[str] = ["Normal", "Premium", "VIP"]
 ESTADOS_PEDIDO: list[str] = ["Pendiente", "En preparación", "Entregado", "Cancelado"]
 OCASIONES: list[str] = [
@@ -21,7 +21,7 @@ OCASIONES: list[str] = [
     "Duelo", "Día de la Madre", "Otra"
 ]
 
-# ─── Límites de validación ───────────────────────────────────
+# Límites de validación
 MAX_NOMBRE: int = 80
 MAX_RUT: int = 12
 MAX_EMAIL: int = 100

@@ -39,7 +39,7 @@ def esperar_y_volver() -> None:
         elif opcion in ['1', 'c', 'v']:
             return
         else:
-            print(f"{Colors.RED} Opción inválida. Use 1, 2, c o v{Colors.END}")
+            print(f"{Colors.RED}✗ Opción inválida. Use 1, 2, c o v{Colors.END}")
 
 
 def seleccionar_cliente(coleccion: Collection, accion: str = "operar") -> Optional[dict]:
@@ -72,7 +72,7 @@ def seleccionar_cliente(coleccion: Collection, accion: str = "operar") -> Option
             else:
                 print(f"{Colors.RED}✗ Número fuera de rango{Colors.END}")
         except ValueError:
-            print(f"{Colors.RED} Ingresa un número válido, o 'c' para cancelar{Colors.END}")
+            print(f"{Colors.RED}✗ Ingresa un número válido, o 'c' para cancelar{Colors.END}")
 
 
 def mostrar_documento_completo(coleccion: Collection, cliente_id, titulo: str = "") -> None:
