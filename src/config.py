@@ -21,7 +21,7 @@ OCASIONES: list[str] = [
     "Duelo", "Día de la Madre", "Otra"
 ]
 
-# ─── Límites de validación ───────────────────────────────────
+# ── Límites de validación ───────────────────────────────────
 MAX_NOMBRE: int = 80
 MAX_RUT: int = 12
 MAX_EMAIL: int = 100

@@ -29,7 +29,7 @@ def actualizar_estado_pedido(coleccion: Collection, cliente_id: ObjectId, num_pe
         )
         return True
     except Exception as e:
-        print(f"{Colors.RED} Error al actualizar estado: {e}{Colors.END}")
+        print(f"{Colors.RED}✗ Error al actualizar estado: {e}{Colors.END}")
         return False
 
 

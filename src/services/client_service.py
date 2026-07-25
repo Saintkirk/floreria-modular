@@ -9,10 +9,12 @@ from src.validators.chilean_validators import formatear_rut
 from src.ui.colors import Colors
 from src.ui.formatters import formatear_precio
 
+
 def obtener_cliente_por_rut(coleccion: Collection, rut: str) -> Optional[Dict[str, Any]]:
     """Busca un cliente por su RUT formateado."""
     rut_formateado = formatear_rut(rut)
     return coleccion.find_one({"rut": rut_formateado})
+
 
 def crear_cliente(coleccion: Collection, documento: Dict[str, Any]) -> Optional[ObjectId]:
     """
@@ -29,6 +31,7 @@ def crear_cliente(coleccion: Collection, documento: Dict[str, Any]) -> Optional[
     except Exception as e:
         print(f"{Colors.RED}✗ Error al crear cliente: {e}{Colors.END}")
         return None
+
 
 def actualizar_campo(coleccion: Collection, cliente_id: ObjectId, campo: str, valor: Any) -> bool:
     """
@@ -48,6 +51,7 @@ def actualizar_campo(coleccion: Collection, cliente_id: ObjectId, campo: str, va
         print(f"{Colors.RED}✗ Error al actualizar: {e}{Colors.END}")
         return False
 
+
 def eliminar_cliente(coleccion: Collection, cliente_id: ObjectId) -> bool:
     """Elimina un cliente por su ObjectId."""
     try:
@@ -56,6 +60,7 @@ def eliminar_cliente(coleccion: Collection, cliente_id: ObjectId) -> bool:
     except Exception as e:
         print(f"{Colors.RED}✗ Error al eliminar: {e}{Colors.END}")
         return False
+
 
 def mostrar_catalogo(db) -> list:
     """
