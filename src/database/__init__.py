@@ -1,0 +1,1 @@
+"""Módulo de conexión y operaciones con MongoDB."""

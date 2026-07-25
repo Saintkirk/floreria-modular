@@ -1,0 +1,4 @@
+# Dependencias de producción para Florería INACAP
+pymongo>=4.0.0
+python-dotenv>=1.0.0
+colorama>=0.4.6
