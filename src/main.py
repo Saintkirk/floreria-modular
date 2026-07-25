@@ -9,10 +9,12 @@ from src.database.connection import conectar_mongo
 from src.ui.menu import mostrar_menu, esperar_y_volver
 from src.ui.colors import Colors
 
-# Importación perezosa (Lazy Loading) de las vistas para mejorar el tiempo de arranque
+
 def _get_views():
+    """Importación perezosa (Lazy Loading) de las vistas."""
     from src.ui import views
     return views
+
 
 def main() -> None:
     """Punto de entrada principal del sistema."""
@@ -26,7 +28,6 @@ def main() -> None:
         if opcion == "0":
             print(f"\n{Colors.GREEN}✓ Saliendo del sistema{Colors.END}")
             break
-        # Mapeo de opciones a funciones de vista
         acciones = {
             "1": views.vista_crear_cliente,
             "2": views.vista_listar_clientes,
@@ -47,6 +48,7 @@ def main() -> None:
             input(f"\n{Colors.YELLOW}Presione Enter para volver...{Colors.END}")
         else:
             print(f"{Colors.RED}✗ Opción inválida{Colors.END}")
+
 
 if __name__ == "__main__":
     main()
