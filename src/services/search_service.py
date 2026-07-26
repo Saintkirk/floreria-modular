@@ -1,43 +1,75 @@
 """
 Servicio de búsquedas avanzadas en MongoDB.
-Implementa búsquedas por regex, fechas, comparación y subdocumentos.
 """
 from datetime import datetime
 from typing import List, Dict, Any
 from pymongo.collection import Collection
+from pymongo.errors import PyMongoError
 from src.ui.colors import Colors
-from src.ui.formatters import formatear_precio, generar_regex_con_tildes
-from src.config import CATEGORIAS, ESTADOS_PEDIDO, OCASIONES
+from src.ui.formatters import generar_regex_con_tildes
+
+# Whitelist de operadores permitidos (Seguridad contra inyección)
+OPERADORES_PERMITIDOS = {"$eq", "$gt", "$gte", "$lt", "$lte", "$ne", "$in", "$nin"}
 
 def buscar_por_regex(coleccion: Collection, campo: str, patron: str) -> List[Dict[str, Any]]:
     """Busca documentos usando expresión regular con soporte de tildes y ñ."""
-    regex_patron = generar_regex_con_tildes(patron)
-    query = {campo: {"$regex": regex_patron, "$options": "i"}}
-    return list(coleccion.find(query))
+    try:
+        regex_patron = generar_regex_con_tildes(patron)
+        query = {campo: {"$regex": regex_patron, "$options": "i"}}
+        return list(coleccion.find(query))
+    except PyMongoError as e:
+        print(f"{Colors.RED}✗ Error de MongoDB en búsqueda: {e}{Colors.END}")
+        return []
 
 def buscar_por_fechas(coleccion: Collection, fecha_inicio: datetime, fecha_fin: datetime) -> List[Dict[str, Any]]:
-    """Busca pedidos dentro de un rango de fechas (incluye el día final completo)."""
-    fecha_fin = fecha_fin.replace(hour=23, minute=59, second=59)
-    query = {"pedidos.fecha_pedido": {"$gte": fecha_inicio, "$lte": fecha_fin}}
-    return list(coleccion.find(query))
+    """Busca pedidos dentro de un rango de fechas."""
+    try:
+        fecha_fin = fecha_fin.replace(hour=23, minute=59, second=59)
+        query = {"pedidos.fecha_pedido": {"$gte": fecha_inicio, "$lte": fecha_fin}}
+        return list(coleccion.find(query))
+    except PyMongoError as e:
+        print(f"{Colors.RED}✗ Error de MongoDB en búsqueda: {e}{Colors.END}")
+        return []
 
 def buscar_por_comparacion(coleccion: Collection, ruta: str, operador: str, valor) -> List[Dict[str, Any]]:
-    """Busca documentos usando operadores de comparación de MongoDB."""
-    query = {ruta: {operador: valor}}
-    return list(coleccion.find(query))
+    """Busca documentos usando operadores de comparación (con validación de seguridad)."""
+    if operador not in OPERADORES_PERMITIDOS:
+        print(f"{Colors.RED}✗ Error: Operador '{operador}' no permitido{Colors.END}")
+        return []
+    
+    try:
+        query = {ruta: {operador: valor}}
+        return list(coleccion.find(query))
+    except PyMongoError as e:
+        print(f"{Colors.RED}✗ Error de MongoDB en búsqueda: {e}{Colors.END}")
+        return []
 
-def buscar_elemmatch(coleccion: Collection, pmin: float, pmax: float) -> List[Dict[str, Any]]:
+def buscar_pedidos_por_rango_total(coleccion: Collection, pmin: float, pmax: float) -> List[Dict[str, Any]]:
     """Busca pedidos con total dentro de un rango usando $elemMatch."""
-    query = {"pedidos": {"$elemMatch": {"total": {"$gte": pmin, "$lte": pmax}}}}
-    return list(coleccion.find(query))
+    try:
+        query = {"pedidos": {"$elemMatch": {"total": {"$gte": pmin, "$lte": pmax}}}}
+        return list(coleccion.find(query))
+    except PyMongoError as e:
+        print(f"{Colors.RED}✗ Error de MongoDB en búsqueda: {e}{Colors.END}")
+        return []
 
 def generar_numero_pedido(coleccion: Collection) -> str:
-    """Genera el siguiente número de pedido secuencial (P001, P002, ...)."""
-    max_num = 0
-    documentos = coleccion.find({}, {"pedidos.numero_pedido": 1})
-    for doc in documentos:
-        for p in doc.get("pedidos", []):
-            num_str = p.get("numero_pedido", "")
-            if num_str.startswith("P") and num_str[1:].isdigit():
-                max_num = max(max_num, int(num_str[1:]))
-    return f"P{max_num + 1:03d}"
+    """Genera el siguiente número de pedido secuencial (P001, P002, ...) de forma optimizada."""
+    try:
+        ultimo = coleccion.find_one(
+            {"pedidos.numero_pedido": {"$regex": "^P\\d+$"}},
+            {"pedidos": {"$elemMatch": {"numero_pedido": {"$regex": "^P\\d+$"}}}},
+            sort=[("pedidos.numero_pedido", -1)]
+        )
+        
+        max_num = 0
+        if ultimo and "pedidos" in ultimo:
+            for p in ultimo["pedidos"]:
+                num = p.get("numero_pedido", "")
+                if num.startswith("P") and num[1:].isdigit():
+                    max_num = max(max_num, int(num[1:]))
+        
+        return f"P{max_num + 1:03d}"
+    except PyMongoError as e:
+        print(f"{Colors.RED}✗ Error al generar número de pedido: {e}{Colors.END}")
+        return "P001"

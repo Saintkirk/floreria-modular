@@ -13,7 +13,7 @@ DB_NAME: str = os.getenv("DB_NAME", "floreria_db")
 COLLECTION_CLIENTS: str = "clientes"
 COLLECTION_CATALOG: str = "productos_catalogo"
 
-# Constantes del dominio
+# Constantes del dominio (SIN espacios al final)
 CATEGORIAS: list[str] = ["Normal", "Premium", "VIP"]
 ESTADOS_PEDIDO: list[str] = ["Pendiente", "En preparación", "Entregado", "Cancelado"]
 OCASIONES: list[str] = [

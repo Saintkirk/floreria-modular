@@ -4,8 +4,6 @@ Usa mongomock para simular MongoDB sin necesidad de un servidor real.
 """
 import pytest
 import mongomock
-from pymongo.collection import Collection
-
 
 @pytest.fixture
 def mock_db():
@@ -13,16 +11,14 @@ def mock_db():
     client = mongomock.MongoClient()
     return client["floreria_db"]
 
-
 @pytest.fixture
 def mock_coleccion(mock_db):
     """Crea una colección mock de clientes."""
     return mock_db["clientes"]
 
-
 @pytest.fixture
 def cliente_ejemplo():
-    """Documento de cliente de ejemplo para tests."""
+    """Documento de cliente de ejemplo para tests (SIN espacios fantasma)."""
     return {
         "nombre": "Juan Pérez",
         "rut": "12.345.678-5",

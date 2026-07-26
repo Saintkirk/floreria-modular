@@ -3,8 +3,8 @@ Códigos ANSI para colores en terminal.
 Compatible con Windows mediante colorama.
 """
 from colorama import init
-init()
 
+init()
 
 class Colors:
     """Paleta de colores ANSI para la interfaz de consola."""

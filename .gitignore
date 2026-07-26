@@ -26,7 +26,7 @@ ENV/
 env/
 .venv
 
-# Variables de entorno
+# Variables de entorno (CREDENCIALES - NUNCA subir)
 .env
 .env.local
 .env.*.local
@@ -37,6 +37,8 @@ env/
 *.swp
 *.swo
 *~
+
+# Sistema operativo
 .DS_Store
 
 # Logs

@@ -11,6 +11,7 @@ from src.ui.colors import Colors
 def conectar_mongo() -> Optional[Collection]:
     """
     Establece conexión con MongoDB y retorna la colección de clientes.
+    
     Returns:
         Colección de MongoDB o None si la conexión falla.
     """

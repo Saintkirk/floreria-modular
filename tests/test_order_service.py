@@ -1,8 +1,10 @@
 """Tests para el servicio de pedidos."""
+import pytest
 from src.services.client_service import crear_cliente
 from src.services.order_service import (
     agregar_pedido,
     actualizar_estado_pedido,
+    agregar_producto_a_pedido,
     eliminar_pedido,
 )
 
@@ -31,6 +33,27 @@ class TestActualizarEstadoPedido:
         assert resultado is True
         doc = mock_coleccion.find_one({"_id": cliente_id})
         assert doc["pedidos"][0]["estado"] == "Cancelado"
+
+
+class TestAgregarProductoAPedido:
+    def test_agregar_producto_atomico(self, mock_coleccion, cliente_ejemplo):
+        """Test de operación atómica: producto y total se actualizan juntos."""
+        cliente_id = crear_cliente(mock_coleccion, cliente_ejemplo)
+        
+        producto = {"nombre": "Girasoles", "cantidad": 2, "precio": 18000}
+        nuevo_total = 25000 + (2 * 18000)  # Total original + nuevo producto
+        
+        resultado = agregar_producto_a_pedido(
+            mock_coleccion, cliente_id, "P001", producto, nuevo_total
+        )
+        
+        assert resultado is True
+        doc = mock_coleccion.find_one({"_id": cliente_id})
+        pedido = doc["pedidos"][0]
+        
+        # Verificar que ambos cambios se aplicaron (atomicidad)
+        assert len(pedido["productos"]) == 2
+        assert pedido["total"] == nuevo_total
 
 
 class TestEliminarPedido:
