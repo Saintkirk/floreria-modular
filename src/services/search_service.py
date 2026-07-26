@@ -24,9 +24,29 @@ def buscar_por_regex(coleccion: Collection, campo: str, patron: str) -> List[Dic
 def buscar_por_fechas(coleccion: Collection, fecha_inicio: datetime, fecha_fin: datetime) -> List[Dict[str, Any]]:
     """Busca pedidos dentro de un rango de fechas."""
     try:
-        fecha_fin = fecha_fin.replace(hour=23, minute=59, second=59)
-        query = {"pedidos.fecha_pedido": {"$gte": fecha_inicio, "$lte": fecha_fin}}
-        return list(coleccion.find(query))
+        # Convertir fechas a formato string para compatibilidad con mongomock
+        fecha_inicio_str = fecha_inicio.strftime("%Y-%m-%d")
+        fecha_fin_dt = fecha_fin.replace(hour=23, minute=59, second=59)
+        fecha_fin_str = fecha_fin_dt.strftime("%Y-%m-%d")
+        
+        # Buscar clientes que tengan al menos un pedido en el rango de fechas
+        resultados = []
+        for doc in coleccion.find():
+            pedidos = doc.get("pedidos", [])
+            for pedido in pedidos:
+                fecha_pedido = pedido.get("fecha_pedido")
+                if isinstance(fecha_pedido, str):
+                    # Comparar strings directamente
+                    if fecha_inicio_str <= fecha_pedido <= fecha_fin_str:
+                        resultados.append(doc)
+                        break
+                elif isinstance(fecha_pedido, datetime):
+                    # Comparar datetimes
+                    if fecha_inicio <= fecha_pedido <= fecha_fin_dt:
+                        resultados.append(doc)
+                        break
+        
+        return resultados
     except PyMongoError as e:
         print(f"{Colors.RED}✗ Error de MongoDB en búsqueda: {e}{Colors.END}")
         return []

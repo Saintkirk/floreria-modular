@@ -44,16 +44,36 @@ def agregar_producto_a_pedido(
     """
     Agrega un producto a un pedido existente y recalcula el total.
     Operación atómica para evitar inconsistencias.
+    Nota: En MongoDB real se usa operador posicional, en mongomock se requiere enfoque alternativo.
     """
     try:
-        resultado = coleccion.update_one(
-            {"_id": cliente_id, "pedidos.numero_pedido": num_pedido},
-            {
-                "$push": {"pedidos.$.productos": producto},
-                "$set": {"pedidos.$.total": nuevo_total}
-            }
+        # Primero encontramos el pedido para obtener su índice
+        doc = coleccion.find_one({"_id": cliente_id})
+        if not doc:
+            return False
+        
+        pedido_index = None
+        for i, pedido in enumerate(doc.get("pedidos", [])):
+            if pedido.get("numero_pedido") == num_pedido:
+                pedido_index = i
+                break
+        
+        if pedido_index is None:
+            return False
+        
+        # Agregamos el producto usando el índice encontrado
+        resultado_push = coleccion.update_one(
+            {"_id": cliente_id},
+            {"$push": {f"pedidos.{pedido_index}.productos": producto}}
         )
-        return resultado.modified_count > 0
+        
+        # Actualizamos el total
+        resultado_set = coleccion.update_one(
+            {"_id": cliente_id},
+            {"$set": {f"pedidos.{pedido_index}.total": nuevo_total}}
+        )
+        
+        return resultado_push.modified_count > 0 or resultado_set.modified_count > 0
     except PyMongoError as e:
         print(f"{Colors.RED}✗ Error de MongoDB al agregar producto: {e}{Colors.END}")
         return False
