@@ -11,28 +11,31 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4  # Actualizado a v4
+    - uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v5  # Actualizado a v5
+      uses: actions/setup-python@v5
       with:
         python-version: '3.9'
-        cache: 'pip'  # Habilitar caché para velocidad
+        cache: 'pip'
     
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        # Asegurar que las dependencias de test estén instaladas
+        # Aseguramos que pytest y sus plugins estén instalados explícitamente
         pip install pytest pytest-cov mongomock
     
     - name: Run tests
       run: |
-        pytest tests/ -v --cov=src --cov-report=xml
+        # Ejecutamos pytest sin generar xml de cobertura para evitar el error de artifacto
+        # Si quieres cobertura en consola, usa --cov-report=term
+        python -m pytest tests/ -v --tb=short
     
-    - name: Upload coverage
-      uses: actions/upload-artifact@v4  # Actualizado a v4
-      if: always()
-      with:
-        name: coverage-report
-        path: coverage.xml
+    # Opcional: Si realmente necesitas el archivo de cobertura, descomenta esto y asegúrate de que el paso anterior lo genere
+    # - name: Upload coverage reports
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: coverage-report
+    #     path: coverage.xml
+    #   if: always()
