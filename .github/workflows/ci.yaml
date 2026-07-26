@@ -12,7 +12,9 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
-    
+      with:
+        node-version: '20' # Opcional según la versión, pero asegúrate de usar versiones recientes de las acciones si están disponibles
+        
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -31,11 +33,3 @@ jobs:
         # Ejecutamos pytest sin generar xml de cobertura para evitar el error de artifacto
         # Si quieres cobertura en consola, usa --cov-report=term
         python -m pytest tests/ -v --tb=short
-    
-    # Opcional: Si realmente necesitas el archivo de cobertura, descomenta esto y asegúrate de que el paso anterior lo genere
-    # - name: Upload coverage reports
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: coverage-report
-    #     path: coverage.xml
-    #   if: always()
