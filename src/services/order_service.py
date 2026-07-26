@@ -4,6 +4,9 @@ from typing import List, Dict, Any, Optional
 from pymongo.collection import Collection
 from bson.objectid import ObjectId
 
+# Alias para compatibilidad con tests antiguos
+agregar_pedido = None 
+
 class OrderService:
     def __init__(self, db_collection: Collection):
         self.collection = db_collection
@@ -23,6 +26,11 @@ class OrderService:
         pedido["_id"] = str(result.inserted_id)
         return pedido
 
+    # Función requerida por los tests (Alias o implementación directa)
+    def agregar_pedido(self, cliente_id: str, productos: List[Dict], ocasion: str, estado: str = "pendiente") -> Dict:
+        """Alias de crear_pedido para compatibilidad con tests"""
+        return self.crear_pedido(cliente_id, productos, ocasion, estado)
+
     def obtener_pedido(self, pedido_id: str) -> Optional[Dict]:
         """Obtiene un pedido por su ID"""
         try:
@@ -41,33 +49,24 @@ class OrderService:
         return pedidos
 
     def agregar_producto_a_pedido(self, pedido_id: str, producto: Dict) -> Optional[Dict]:
-        """
-        Agrega un producto a un pedido existente.
-        CORRECCIÓN: Usa índices explícitos en lugar del operador '$' para compatibilidad con mongomock.
-        """
+        """Agrega un producto a un pedido existente (Compatible con mongomock)"""
         try:
-            # 1. Obtener el pedido actual
             pedido_obj = self.collection.find_one({"_id": ObjectId(pedido_id)})
             if not pedido_obj:
                 return None
 
-            # 2. Agregar el producto a la lista en memoria
             if "productos" not in pedido_obj:
                 pedido_obj["productos"] = []
             
             pedido_obj["productos"].append(producto)
-            
-            # Recalcular total
             nuevo_total = sum(p.get('precio', 0) * p.get('cantidad', 1) for p in pedido_obj["productos"])
             
-            # 3. Actualizar el documento completo o usar índices específicos
-            # Opción A: Actualizar todo el documento (más seguro con mongomock)
+            # Actualización segura sin operadores posicionales ($)
             self.collection.update_one(
                 {"_id": ObjectId(pedido_id)},
                 {"$set": {"productos": pedido_obj["productos"], "total": nuevo_total}}
             )
             
-            # Retornar el pedido actualizado
             pedido_obj["_id"] = str(pedido_obj["_id"])
             return pedido_obj
             
@@ -93,3 +92,6 @@ class OrderService:
             return result.deleted_count > 0
         except Exception:
             return False
+
+# Definir el alias global al final para asegurar que la clase esté definida
+agregar_pedido = OrderService.agregar_pedido

@@ -29,17 +29,10 @@ class SearchService:
         return resultados
 
     def buscar_por_fechas(self, fecha_inicio: str, fecha_fin: str) -> List[Dict]:
-        """
-        Busca pedidos dentro de un rango de fechas.
-        CORRECCIÓN: Implementación manual compatible con mongomock comparando strings YYYY-MM-DD.
-        """
+        """Busca pedidos dentro de un rango de fechas (Compatible con mongomock)"""
         try:
-            # Obtener todos los candidatos (podría optimizarse con índices en DB real)
             candidatos = list(self.collection.find())
             resultados = []
-            
-            # Normalizar fechas de entrada a formato YYYY-MM-DD para comparación
-            # Asumimos que la entrada es YYYY-MM-DD o convertible
             start_str = fecha_inicio[:10] 
             end_str = fecha_fin[:10]
 
@@ -48,8 +41,6 @@ class SearchService:
                     continue
                 
                 fecha_doc = doc["fecha_creacion"]
-                
-                # Si es objeto datetime, convertir a string
                 if isinstance(fecha_doc, datetime):
                     fecha_str = fecha_doc.strftime("%Y-%m-%d")
                 elif isinstance(fecha_doc, str):
@@ -57,7 +48,6 @@ class SearchService:
                 else:
                     continue
 
-                # Comparación de strings (funciona porque el formato es ISO)
                 if start_str <= fecha_str <= end_str:
                     doc["_id"] = str(doc["_id"])
                     resultados.append(doc)
@@ -70,10 +60,16 @@ class SearchService:
 
     def buscar_productos_en_pedidos(self, nombre_producto: str) -> List[Dict]:
         """Busca pedidos que contengan un producto específico"""
-        # Usamos $elemMatch para buscar dentro del array de productos
-        query = {
-            "productos.nombre": {"$regex": nombre_producto, "$options": "i"}
-        }
+        query = {"productos.nombre": {"$regex": nombre_producto, "$options": "i"}}
+        resultados = list(self.collection.find(query))
+        for r in resultados:
+            r["_id"] = str(r["_id"])
+        return resultados
+
+    # Función requerida explícitamente por los tests
+    def buscar_por_regex(self, campo: str, valor: str) -> List[Dict]:
+        """Búsqueda genérica por regex compatible con tests"""
+        query = {campo: {"$regex": valor, "$options": "i"}}
         resultados = list(self.collection.find(query))
         for r in resultados:
             r["_id"] = str(r["_id"])
