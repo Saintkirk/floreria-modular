@@ -37,8 +37,7 @@ def actualizar_estado_pedido(order_id, nuevo_estado):
     return result.modified_count > 0
 
 def agregar_pedido(order_data):
-    """Método alternativo para agregar pedido (legacy)"""
-    # Esta función puede ser removida si solo usas crear_pedido
+    """Método alternativo para agregar pedido"""
     order_id = order_data.get('id', str(uuid.uuid4()))
     order = Order(
         id=order_id,
