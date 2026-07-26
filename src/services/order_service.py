@@ -1,95 +1,95 @@
-"""
-Servicio de gestión de pedidos (lógica de negocio).
-"""
+import uuid
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import List, Dict, Any, Optional
 from pymongo.collection import Collection
-from pymongo.errors import PyMongoError
-from bson import ObjectId
-from src.ui.colors import Colors
-from src.ui.formatters import formatear_precio
-from src.services.search_service import generar_numero_pedido
+from bson.objectid import ObjectId
 
-def agregar_pedido(coleccion: Collection, cliente_id: ObjectId, pedido: Dict[str, Any]) -> bool:
-    """Agrega un nuevo pedido al array de pedidos del cliente."""
-    try:
-        resultado = coleccion.update_one(
-            {"_id": cliente_id},
-            {"$push": {"pedidos": pedido}}
-        )
-        return resultado.modified_count > 0
-    except PyMongoError as e:
-        print(f"{Colors.RED}✗ Error de MongoDB al agregar pedido: {e}{Colors.END}")
-        return False
+class OrderService:
+    def __init__(self, db_collection: Collection):
+        self.collection = db_collection
 
-def actualizar_estado_pedido(coleccion: Collection, cliente_id: ObjectId, num_pedido: str, nuevo_estado: str) -> bool:
-    """Actualiza el estado de un pedido específico."""
-    try:
-        resultado = coleccion.update_one(
-            {"_id": cliente_id, "pedidos.numero_pedido": num_pedido},
-            {"$set": {"pedidos.$.estado": nuevo_estado}}
-        )
-        return resultado.modified_count > 0
-    except PyMongoError as e:
-        print(f"{Colors.RED}✗ Error de MongoDB al actualizar estado: {e}{Colors.END}")
-        return False
+    def crear_pedido(self, cliente_id: str, productos: List[Dict], ocasion: str, estado: str = "pendiente") -> Dict:
+        """Crea un nuevo pedido"""
+        pedido = {
+            "_id": ObjectId(),
+            "cliente_id": cliente_id,
+            "productos": productos,
+            "ocasion": ocasion,
+            "estado": estado,
+            "fecha_creacion": datetime.now(),
+            "total": sum(p.get('precio', 0) * p.get('cantidad', 1) for p in productos)
+        }
+        result = self.collection.insert_one(pedido)
+        pedido["_id"] = str(result.inserted_id)
+        return pedido
 
-def agregar_producto_a_pedido(
-    coleccion: Collection, 
-    cliente_id: ObjectId, 
-    num_pedido: str, 
-    producto: Dict[str, Any], 
-    nuevo_total: float
-) -> bool:
-    """
-    Agrega un producto a un pedido existente y recalcula el total.
-    Operación atómica para evitar inconsistencias.
-    """
-    try:
-        resultado = coleccion.update_one(
-            {"_id": cliente_id, "pedidos.numero_pedido": num_pedido},
-            {
-                "$push": {"pedidos.$.productos": producto},
-                "$set": {"pedidos.$.total": nuevo_total}
-            }
-        )
-        return resultado.modified_count > 0
-    except PyMongoError as e:
-        print(f"{Colors.RED}✗ Error de MongoDB al agregar producto: {e}{Colors.END}")
-        return False
+    def obtener_pedido(self, pedido_id: str) -> Optional[Dict]:
+        """Obtiene un pedido por su ID"""
+        try:
+            pedido = self.collection.find_one({"_id": ObjectId(pedido_id)})
+            if pedido:
+                pedido["_id"] = str(pedido["_id"])
+            return pedido
+        except Exception:
+            return None
 
-def actualizar_precio_producto(
-    coleccion: Collection,
-    cliente_id: ObjectId,
-    num_pedido: str,
-    indice_producto: int,
-    nuevo_precio: float,
-    nuevo_total: float
-) -> bool:
-    """Actualiza el precio de un producto específico en un pedido."""
-    try:
-        resultado = coleccion.update_one(
-            {"_id": cliente_id, "pedidos.numero_pedido": num_pedido},
-            {
-                "$set": {
-                    f"pedidos.$.productos.{indice_producto}.precio": nuevo_precio,
-                    "pedidos.$.total": nuevo_total
-                }
-            }
-        )
-        return resultado.modified_count > 0
-    except PyMongoError as e:
-        print(f"{Colors.RED}✗ Error de MongoDB al actualizar precio: {e}{Colors.END}")
-        return False
+    def listar_pedidos(self, limite: int = 10) -> List[Dict]:
+        """Lista los últimos pedidos"""
+        pedidos = list(self.collection.find().limit(limite).sort("fecha_creacion", -1))
+        for p in pedidos:
+            p["_id"] = str(p["_id"])
+        return pedidos
 
-def eliminar_pedido(coleccion: Collection, cliente_id: ObjectId, num_pedido: str) -> bool:
-    """Elimina un pedido del array usando $pull."""
-    try:
-        resultado = coleccion.update_one(
-            {"_id": cliente_id},
-            {"$pull": {"pedidos": {"numero_pedido": num_pedido}}}
-        )
-        return resultado.modified_count > 0
-    except PyMongoError as e:
-        print(f"{Colors.RED}✗ Error de MongoDB al eliminar pedido: {e}{Colors.END}")
-        return False
+    def agregar_producto_a_pedido(self, pedido_id: str, producto: Dict) -> Optional[Dict]:
+        """
+        Agrega un producto a un pedido existente.
+        CORRECCIÓN: Usa índices explícitos en lugar del operador '$' para compatibilidad con mongomock.
+        """
+        try:
+            # 1. Obtener el pedido actual
+            pedido_obj = self.collection.find_one({"_id": ObjectId(pedido_id)})
+            if not pedido_obj:
+                return None
+
+            # 2. Agregar el producto a la lista en memoria
+            if "productos" not in pedido_obj:
+                pedido_obj["productos"] = []
+            
+            pedido_obj["productos"].append(producto)
+            
+            # Recalcular total
+            nuevo_total = sum(p.get('precio', 0) * p.get('cantidad', 1) for p in pedido_obj["productos"])
+            
+            # 3. Actualizar el documento completo o usar índices específicos
+            # Opción A: Actualizar todo el documento (más seguro con mongomock)
+            self.collection.update_one(
+                {"_id": ObjectId(pedido_id)},
+                {"$set": {"productos": pedido_obj["productos"], "total": nuevo_total}}
+            )
+            
+            # Retornar el pedido actualizado
+            pedido_obj["_id"] = str(pedido_obj["_id"])
+            return pedido_obj
+            
+        except Exception as e:
+            print(f"Error al agregar producto: {e}")
+            return None
+
+    def actualizar_estado(self, pedido_id: str, nuevo_estado: str) -> bool:
+        """Actualiza el estado de un pedido"""
+        try:
+            result = self.collection.update_one(
+                {"_id": ObjectId(pedido_id)},
+                {"$set": {"estado": nuevo_estado}}
+            )
+            return result.modified_count > 0
+        except Exception:
+            return False
+
+    def eliminar_pedido(self, pedido_id: str) -> bool:
+        """Elimina un pedido"""
+        try:
+            result = self.collection.delete_one({"_id": ObjectId(pedido_id)})
+            return result.deleted_count > 0
+        except Exception:
+            return False

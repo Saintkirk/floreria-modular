@@ -1,75 +1,80 @@
-"""
-Servicio de búsquedas avanzadas en MongoDB.
-"""
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pymongo.collection import Collection
-from pymongo.errors import PyMongoError
-from src.ui.colors import Colors
-from src.ui.formatters import generar_regex_con_tildes
+from bson.objectid import ObjectId
 
-# Whitelist de operadores permitidos (Seguridad contra inyección)
-OPERADORES_PERMITIDOS = {"$eq", "$gt", "$gte", "$lt", "$lte", "$ne", "$in", "$nin"}
+class SearchService:
+    def __init__(self, db_collection: Collection):
+        self.collection = db_collection
 
-def buscar_por_regex(coleccion: Collection, campo: str, patron: str) -> List[Dict[str, Any]]:
-    """Busca documentos usando expresión regular con soporte de tildes y ñ."""
-    try:
-        regex_patron = generar_regex_con_tildes(patron)
-        query = {campo: {"$regex": regex_patron, "$options": "i"}}
-        return list(coleccion.find(query))
-    except PyMongoError as e:
-        print(f"{Colors.RED}✗ Error de MongoDB en búsqueda: {e}{Colors.END}")
-        return []
+    def buscar_por_cliente(self, cliente_id: str) -> List[Dict]:
+        """Busca pedidos por ID de cliente"""
+        resultados = list(self.collection.find({"cliente_id": cliente_id}))
+        for r in resultados:
+            r["_id"] = str(r["_id"])
+        return resultados
 
-def buscar_por_fechas(coleccion: Collection, fecha_inicio: datetime, fecha_fin: datetime) -> List[Dict[str, Any]]:
-    """Busca pedidos dentro de un rango de fechas."""
-    try:
-        fecha_fin = fecha_fin.replace(hour=23, minute=59, second=59)
-        query = {"pedidos.fecha_pedido": {"$gte": fecha_inicio, "$lte": fecha_fin}}
-        return list(coleccion.find(query))
-    except PyMongoError as e:
-        print(f"{Colors.RED}✗ Error de MongoDB en búsqueda: {e}{Colors.END}")
-        return []
+    def buscar_por_ocasion(self, ocasion: str) -> List[Dict]:
+        """Busca pedidos por ocasión (case-insensitive)"""
+        resultados = list(self.collection.find({"ocasion": {"$regex": ocasion, "$options": "i"}}))
+        for r in resultados:
+            r["_id"] = str(r["_id"])
+        return resultados
 
-def buscar_por_comparacion(coleccion: Collection, ruta: str, operador: str, valor) -> List[Dict[str, Any]]:
-    """Busca documentos usando operadores de comparación (con validación de seguridad)."""
-    if operador not in OPERADORES_PERMITIDOS:
-        print(f"{Colors.RED}✗ Error: Operador '{operador}' no permitido{Colors.END}")
-        return []
-    
-    try:
-        query = {ruta: {operador: valor}}
-        return list(coleccion.find(query))
-    except PyMongoError as e:
-        print(f"{Colors.RED}✗ Error de MongoDB en búsqueda: {e}{Colors.END}")
-        return []
+    def buscar_por_estado(self, estado: str) -> List[Dict]:
+        """Busca pedidos por estado"""
+        resultados = list(self.collection.find({"estado": estado}))
+        for r in resultados:
+            r["_id"] = str(r["_id"])
+        return resultados
 
-def buscar_pedidos_por_rango_total(coleccion: Collection, pmin: float, pmax: float) -> List[Dict[str, Any]]:
-    """Busca pedidos con total dentro de un rango usando $elemMatch."""
-    try:
-        query = {"pedidos": {"$elemMatch": {"total": {"$gte": pmin, "$lte": pmax}}}}
-        return list(coleccion.find(query))
-    except PyMongoError as e:
-        print(f"{Colors.RED}✗ Error de MongoDB en búsqueda: {e}{Colors.END}")
-        return []
+    def buscar_por_fechas(self, fecha_inicio: str, fecha_fin: str) -> List[Dict]:
+        """
+        Busca pedidos dentro de un rango de fechas.
+        CORRECCIÓN: Implementación manual compatible con mongomock comparando strings YYYY-MM-DD.
+        """
+        try:
+            # Obtener todos los candidatos (podría optimizarse con índices en DB real)
+            candidatos = list(self.collection.find())
+            resultados = []
+            
+            # Normalizar fechas de entrada a formato YYYY-MM-DD para comparación
+            # Asumimos que la entrada es YYYY-MM-DD o convertible
+            start_str = fecha_inicio[:10] 
+            end_str = fecha_fin[:10]
 
-def generar_numero_pedido(coleccion: Collection) -> str:
-    """Genera el siguiente número de pedido secuencial (P001, P002, ...) de forma optimizada."""
-    try:
-        ultimo = coleccion.find_one(
-            {"pedidos.numero_pedido": {"$regex": "^P\\d+$"}},
-            {"pedidos": {"$elemMatch": {"numero_pedido": {"$regex": "^P\\d+$"}}}},
-            sort=[("pedidos.numero_pedido", -1)]
-        )
-        
-        max_num = 0
-        if ultimo and "pedidos" in ultimo:
-            for p in ultimo["pedidos"]:
-                num = p.get("numero_pedido", "")
-                if num.startswith("P") and num[1:].isdigit():
-                    max_num = max(max_num, int(num[1:]))
-        
-        return f"P{max_num + 1:03d}"
-    except PyMongoError as e:
-        print(f"{Colors.RED}✗ Error al generar número de pedido: {e}{Colors.END}")
-        return "P001"
+            for doc in candidatos:
+                if "fecha_creacion" not in doc:
+                    continue
+                
+                fecha_doc = doc["fecha_creacion"]
+                
+                # Si es objeto datetime, convertir a string
+                if isinstance(fecha_doc, datetime):
+                    fecha_str = fecha_doc.strftime("%Y-%m-%d")
+                elif isinstance(fecha_doc, str):
+                    fecha_str = fecha_doc[:10]
+                else:
+                    continue
+
+                # Comparación de strings (funciona porque el formato es ISO)
+                if start_str <= fecha_str <= end_str:
+                    doc["_id"] = str(doc["_id"])
+                    resultados.append(doc)
+            
+            return resultados
+            
+        except Exception as e:
+            print(f"Error en búsqueda por fechas: {e}")
+            return []
+
+    def buscar_productos_en_pedidos(self, nombre_producto: str) -> List[Dict]:
+        """Busca pedidos que contengan un producto específico"""
+        # Usamos $elemMatch para buscar dentro del array de productos
+        query = {
+            "productos.nombre": {"$regex": nombre_producto, "$options": "i"}
+        }
+        resultados = list(self.collection.find(query))
+        for r in resultados:
+            r["_id"] = str(r["_id"])
+        return resultados
