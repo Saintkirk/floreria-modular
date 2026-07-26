@@ -73,3 +73,23 @@ def generar_numero_pedido(coleccion: Collection) -> str:
     except PyMongoError as e:
         print(f"{Colors.RED}✗ Error al generar número de pedido: {e}{Colors.END}")
         return "P001"
+
+
+def buscar_por_ocasion(coleccion: Collection, ocasion: str) -> List[Dict[str, Any]]:
+    """Busca clientes que tengan pedidos con una ocasión específica usando $elemMatch."""
+    try:
+        query = {"pedidos": {"$elemMatch": {"ocasion": ocasion}}}
+        return list(coleccion.find(query))
+    except PyMongoError as e:
+        print(f"{Colors.RED}✗ Error de MongoDB en búsqueda por ocasión: {e}{Colors.END}")
+        return []
+
+
+def buscar_por_estado(coleccion: Collection, estado: str) -> List[Dict[str, Any]]:
+    """Busca clientes que tengan pedidos con un estado específico usando $elemMatch."""
+    try:
+        query = {"pedidos": {"$elemMatch": {"estado": estado}}}
+        return list(coleccion.find(query))
+    except PyMongoError as e:
+        print(f"{Colors.RED}✗ Error de MongoDB en búsqueda por estado: {e}{Colors.END}")
+        return []
