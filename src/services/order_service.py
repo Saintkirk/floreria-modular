@@ -1,51 +1,138 @@
-import uuid
-from datetime import datetime
-from src.models.order import Order
-from src.database.mongodb import get_database
+"""
+Servicio de gestión de pedidos (lógica de negocio).
+"""
+from typing import Optional, Dict, Any
+from pymongo.collection import Collection
+from bson import ObjectId
 
-db = get_database()
-orders_collection = db["orders"]
 
-def crear_pedido(flores, cliente, direccion):
-    """Crea un nuevo pedido en la base de datos"""
-    order_id = str(uuid.uuid4())
-    order = Order(
-        id=order_id,
-        flores=flores,
-        cliente=cliente,
-        direccion=direccion,
-        estado="pendiente",
-        fecha_creacion=datetime.now()
-    )
-    
-    orders_collection.insert_one(order.to_dict())
-    return order
+def agregar_pedido(coleccion: Collection, cliente_id: ObjectId, nuevo_pedido: Dict[str, Any]) -> bool:
+    """
+    Agrega un pedido a la lista de pedidos de un cliente.
 
-def obtener_pedido(order_id):
-    """Obtiene un pedido por su ID"""
-    data = orders_collection.find_one({"id": order_id})
-    if data:
-        return Order.from_dict(data)
-    return None
+    Args:
+        coleccion: Colección de MongoDB.
+        cliente_id: ObjectId del cliente.
+        nuevo_pedido: Diccionario con los datos del pedido.
 
-def actualizar_estado_pedido(order_id, nuevo_estado):
-    """Actualiza el estado de un pedido existente"""
-    result = orders_collection.update_one(
-        {"id": order_id},
-        {"$set": {"estado": nuevo_estado}}
-    )
-    return result.modified_count > 0
+    Returns:
+        True si el pedido fue agregado exitosamente.
+    """
+    try:
+        resultado = coleccion.update_one(
+            {"_id": cliente_id},
+            {"$push": {"pedidos": nuevo_pedido}}
+        )
+        return resultado.modified_count > 0
+    except Exception:
+        return False
 
-def agregar_pedido(order_data):
-    """Método alternativo para agregar pedido"""
-    order_id = order_data.get('id', str(uuid.uuid4()))
-    order = Order(
-        id=order_id,
-        flores=order_data.get('flores', []),
-        cliente=order_data.get('cliente'),
-        direccion=order_data.get('direccion'),
-        estado=order_data.get('estado', 'pendiente'),
-        fecha_creacion=datetime.now()
-    )
-    orders_collection.insert_one(order.to_dict())
-    return order
+
+def actualizar_estado_pedido(coleccion: Collection, cliente_id: ObjectId, numero_pedido: str, nuevo_estado: str) -> bool:
+    """
+    Actualiza el estado de un pedido específico.
+
+    Args:
+        coleccion: Colección de MongoDB.
+        cliente_id: ObjectId del cliente.
+        numero_pedido: Número del pedido a actualizar.
+        nuevo_estado: Nuevo estado del pedido.
+
+    Returns:
+        True si la actualización fue exitosa.
+    """
+    try:
+        # Obtener el documento completo
+        doc = coleccion.find_one({"_id": cliente_id})
+        if not doc:
+            return False
+
+        # Buscar el pedido y actualizarlo
+        pedidos = doc.get("pedidos", [])
+        encontrado = False
+        for pedido in pedidos:
+            if pedido.get("numero_pedido") == numero_pedido:
+                pedido["estado"] = nuevo_estado
+                encontrado = True
+                break
+
+        if not encontrado:
+            return False
+
+        resultado = coleccion.update_one(
+            {"_id": cliente_id},
+            {"$set": {"pedidos": pedidos}}
+        )
+        return resultado.modified_count > 0
+    except Exception:
+        return False
+
+
+def agregar_producto_a_pedido(
+    coleccion: Collection,
+    cliente_id: ObjectId,
+    numero_pedido: str,
+    producto: Dict[str, Any],
+    nuevo_total: float
+) -> bool:
+    """
+    Agrega un producto a un pedido existente y actualiza el total atómicamente.
+
+    Args:
+        coleccion: Colección de MongoDB.
+        cliente_id: ObjectId del cliente.
+        numero_pedido: Número del pedido.
+        producto: Diccionario con los datos del producto.
+        nuevo_total: Nuevo total del pedido.
+
+    Returns:
+        True si la operación fue exitosa.
+    """
+    try:
+        # Obtener el documento completo
+        doc = coleccion.find_one({"_id": cliente_id})
+        if not doc:
+            return False
+
+        # Buscar el pedido y actualizarlo
+        pedidos = doc.get("pedidos", [])
+        encontrado = False
+        for pedido in pedidos:
+            if pedido.get("numero_pedido") == numero_pedido:
+                pedido.setdefault("productos", []).append(producto)
+                pedido["total"] = nuevo_total
+                encontrado = True
+                break
+
+        if not encontrado:
+            return False
+
+        resultado = coleccion.update_one(
+            {"_id": cliente_id},
+            {"$set": {"pedidos": pedidos}}
+        )
+        return resultado.modified_count > 0
+    except Exception:
+        return False
+
+
+def eliminar_pedido(coleccion: Collection, cliente_id: ObjectId, numero_pedido: str) -> bool:
+    """
+    Elimina un pedido de la lista de pedidos de un cliente.
+
+    Args:
+        coleccion: Colección de MongoDB.
+        cliente_id: ObjectId del cliente.
+        numero_pedido: Número del pedido a eliminar.
+
+    Returns:
+        True si el pedido fue eliminado exitosamente.
+    """
+    try:
+        resultado = coleccion.update_one(
+            {"_id": cliente_id},
+            {"$pull": {"pedidos": {"numero_pedido": numero_pedido}}}
+        )
+        return resultado.modified_count > 0
+    except Exception:
+        return False
